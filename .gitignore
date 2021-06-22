@@ -1,2 +1,4 @@
 # Project exclude paths
 /.gradle/
+credentials.txt
+clientToken.txt
