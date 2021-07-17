@@ -4,16 +4,26 @@ import com.google.gson.JsonParser;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
-
 public class Client {
+    /**
+     * String storing the cliient ID.
+     */
     private String clientID;
+    /**
+     * String storing the client secret.
+     */
     private String clientSecret;
+    /**
+     * The OAuth Token generated using the client ID and client secret.
+     */
     private OAuthToken clientToken;
+
+    private URL serverLink;
 
     /**
      * Generates a client given a client ID and client secret.
@@ -28,32 +38,33 @@ public class Client {
 
     /**
      * Generate a client given a file containing a client separated client ID and client secret.
-     * @param directory directory of the file containing a singular comma separated
+     * @param clientFilePath url of the file containing a singular comma separated
      *             line containing the client ID and client secret.
      */
-    public Client(String directory) {
+
+    public Client(URI clientFilePath, URL serverTokenURL) {
+        serverLink = serverTokenURL;
         try {
-            File credentialsFile = new File(directory);
+            File credentialsFile = new File(clientFilePath);
             Scanner reader = new Scanner(credentialsFile);
             String credentials = reader.nextLine();
             String[] splitCredentials = credentials.split(",");
             this.clientID = splitCredentials[0];
             this.clientSecret = splitCredentials[1];
-            System.out.println("Successfully created client with provided resource URL.");
+            Console.print("Successfully created client with provided client crendentials file.");
         } catch (FileNotFoundException e) {
-            System.out.println("Error with reading credentials");
+            Console.print("Error with reading client credentials.");
             e.printStackTrace();
         }
     }
 
     /**
      * Generates a new access token using the stored client information.
-     * @param tokenURL The URL where access tokens are issued.
      */
-    public void generateNewClientToken(URL tokenURL) {
+    public void generateNewClientToken() {
         try {
             // Establish HTTP connection
-            HttpURLConnection connection = (HttpURLConnection) tokenURL.openConnection();
+            HttpURLConnection connection = (HttpURLConnection) serverLink.openConnection();
 
             // Set HTTP Properties
             connection.setRequestMethod("POST");
@@ -74,7 +85,7 @@ public class Client {
             JsonObject obj = JsonParser.parseString(scanner.next()).getAsJsonObject();
 
             clientToken = new OAuthToken(obj.get("token_type").getAsString(), obj.get("expires_in").getAsInt(), obj.get("access_token").getAsString());
-            System.out.println("Successfully generated new client token");
+            Console.print("Successfully generated new client token from client credentials.");
             connection.disconnect();
 
         } catch (IOException e) {
@@ -84,60 +95,35 @@ public class Client {
     }
 
     /**
-     * Loads the client token information from the given text file.
-     * @param directory the location of the text file containing the client token information.
-     */
-    public void setClientToken(String directory) throws FileNotFoundException {
-        File clientTokenFile = new File(directory);
-        Scanner reader = new Scanner(clientTokenFile);
-        String clientToken = reader.nextLine();
-        String[] splitClientToken = clientToken.split(",");
-        this.clientToken = new OAuthToken(splitClientToken[0], Integer.parseInt(splitClientToken[1]), splitClientToken[2]);
-        System.out.println("Successfully loaded client token information");
-    }
-
-    /**
-     * Tries to load the client token information from the given resource before generating a new client token.
-     * @param tokenURL the URL where the token is retrieved.
-     * @param directory the location of the text file containing the client token information.
-     */
-    public void setClientToken(URL tokenURL, String directory) throws FileNotFoundException{
-        if (!isTokenValid()) {
-            try {
-                setClientToken(directory);
-            } catch (NoSuchElementException | ArrayIndexOutOfBoundsException e){
-                System.out.println("Invalid saved client token, generating new client token.");
-                // Generate a new client token if it is not invalid
-                generateNewClientToken(tokenURL);
-                saveClientToken(directory);
-            }
-        }
-    }
-
-    public void saveClientToken(String directory) {
-        try {
-            File file = new File(directory);
-            FileWriter fw = new FileWriter(file, false);
-            fw.write(clientToken.toString());
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    /**
-     * Returns the client access token.
+     * Returns a client token which is valid at the current time.
      * @return the client access token.
      */
     public String getClientToken() {
-        if (isTokenValid()) {
-            return clientToken.getAccessToken();
+        if (!isTokenValid()) {
+            generateNewClientToken();
         }
-        return null;
+        return clientToken.getAccessToken();
     }
 
     /**
-     * Returns a boolean value on whether the token is valid.
+     * Returns a client access token which is valid for the specified time.
+     * @param duration the duration the token is expected to last for in seconds.
+     * @return the client access token.
+     */
+    public String getClientToken(long duration) {
+        if (!isTokenValid(duration)) {
+            generateNewClientToken();
+        }
+        if (isTokenValid(duration)) {
+            return clientToken.getAccessToken();
+        } else {
+            throw new IllegalArgumentException("Time exceeds the valid duration of the token");
+        }
+    }
+
+
+    /**
+     * Returns a boolean value on whether the token is valid at the current time.
      * @return Returns a boolean value on whether the token is valid.
      */
     public boolean isTokenValid() {
@@ -147,4 +133,18 @@ public class Client {
         }
         return isValid;
     }
+
+    /**
+     * Returns a boolean value on whether the token will be valid for the specified duration.
+     * @param duration the duration the token is required to be valid for.
+     * @return Returns a boolean value on whether the token is valid.
+     */
+    public boolean isTokenValid(long duration) {
+        boolean isValid = false;
+        if (clientToken != null) {
+            isValid = !clientToken.isExpired(duration);
+        }
+        return isValid;
+    }
+
 }
