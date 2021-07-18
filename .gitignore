@@ -27,7 +27,7 @@ workspace.xml
 usage.statistics.xml
 .idea/modules.xml
 gradle.xml
-
+credentials.txt
 
 # Created by https://www.toptal.com/developers/gitignore/api/intellij
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij
