@@ -23,7 +23,8 @@ public class Client {
      */
     private OAuthToken clientToken;
 
-    private URL serverLink;
+    private URL serverTokenURL;
+    private URL serverAPIURL;
 
     /**
      * Generates a client given a client ID and client secret.
@@ -42,8 +43,9 @@ public class Client {
      *             line containing the client ID and client secret.
      */
 
-    public Client(URI clientFilePath, URL serverTokenURL) {
-        serverLink = serverTokenURL;
+    public Client(URI clientFilePath, URL serverTokenURL, URL serverAPIURL) {
+        this.serverTokenURL = serverTokenURL;
+        this.serverAPIURL = serverAPIURL;
         try {
             File credentialsFile = new File(clientFilePath);
             Scanner reader = new Scanner(credentialsFile);
@@ -64,7 +66,7 @@ public class Client {
     public void generateNewClientToken() {
         try {
             // Establish HTTP connection
-            HttpURLConnection connection = (HttpURLConnection) serverLink.openConnection();
+            HttpURLConnection connection = (HttpURLConnection) serverTokenURL.openConnection();
 
             // Set HTTP Properties
             connection.setRequestMethod("POST");
@@ -79,8 +81,8 @@ public class Client {
             stream.write(out);
 
             // Get input stream into json object
-            InputStream inputStream = connection.getInputStream();
-            Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8);
+            InputStream response = connection.getInputStream();
+            Scanner scanner = new Scanner(response, StandardCharsets.UTF_8);
 
             JsonObject obj = JsonParser.parseString(scanner.next()).getAsJsonObject();
 
@@ -92,6 +94,48 @@ public class Client {
             e.printStackTrace();
         }
 
+    }
+
+    /**
+     * Makes a GraphQL Query to the API server.
+     * @param graphQLQuery The GraphQL Query to send to the server.
+     * @return Returns the JSON response as a JsonObject.
+     */
+    public JsonObject makeAPIRequest(JsonObject graphQLQuery){
+        try {
+            // Establish HTTP connection
+            HttpURLConnection connection = (HttpURLConnection) serverAPIURL.openConnection();
+
+            // Set HTTP Properties
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Authorization", "Bearer " + getClientToken());
+
+            // Set data
+            OutputStream stream = connection.getOutputStream();
+            stream.write(graphQLQuery.toString().getBytes(StandardCharsets.UTF_8));
+
+            // Get input stream into json object
+            InputStream response = connection.getInputStream();
+            Scanner scanner = new Scanner(response, StandardCharsets.UTF_8);
+            JsonObject obj = JsonParser.parseString(scanner.nextLine()).getAsJsonObject();
+            connection.disconnect();
+
+            return obj;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    /**
+     * Queries for the rate limit data using the stored client information.
+     * @return Returns a JsonObject containing the rate limit data.
+     */
+    public JsonObject getRateLimitData(){
+        return makeAPIRequest(GraphQLQuery.rateLimitQuery());
     }
 
     /**
