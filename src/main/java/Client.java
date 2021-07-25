@@ -1,4 +1,3 @@
-
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -9,9 +8,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Scanner;
+
 public class Client {
     /**
-     * String storing the cliient ID.
+     * String storing the client ID.
      */
     private String clientID;
     /**

@@ -1,6 +1,7 @@
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.apache.commons.logging.Log;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -17,9 +18,14 @@ import java.util.Scanner;
 
 public class Task {
     private final URI logsPath;
-    private URI outputLoc;
+    private String outputLoc;
     private Client client;
 
+    /**
+     * Initialises all the variables for our task.
+     * @throws MalformedURLException Invalid URLs provided.
+     * @throws URISyntaxException Invalid file paths provided.
+     */
     public Task() throws MalformedURLException, URISyntaxException {
         // Change these for resource location
         String clientCredentialsFileName = "/credentials.txt";
@@ -31,24 +37,16 @@ public class Task {
         // File containing list of logs
         String logsFileName = "/logs.txt";
         logsPath = TaskDriver.class.getResource(logsFileName).toURI();
-        outputLoc = new URI("file:/C:/Users/Jayden Zhang/Desktop/Computer Science/Projects/Output/csv.txt");
+        outputLoc = "C:/Users/Jayden Zhang/Desktop/Computer Science/Projects/Output/csv.txt";
     }
 
+    /**
+     * Runs the main code of the program.
+     */
     public void run(){
-        List<String> logList = new ArrayList<>();
+        LogCollection logCollection = new LogCollection(logsPath);
+        List<String> logList = logCollection.getLogList();
         // Load all the log IDs into logs
-        File file = new File(logsPath);
-        try {
-            Scanner scanner = new Scanner(file);
-            while (scanner.hasNextLine()) {
-                String[] logLine = scanner.nextLine().split("/",5);
-                String logID = logLine[4];
-                logList.add(logID);
-            }
-        } catch (FileNotFoundException e){
-            Console.print("Error reading log file.");
-            e.printStackTrace();
-        }
 
         List<String> csvLines = new ArrayList<>();
         csvLines.add("LogStartTime,PullNumber,PullDuration,BossPercentage,FightPercentage,LastPhase,LastPhaseIntermission,StartTime,EndTime");
@@ -88,7 +86,7 @@ public class Task {
         try {
             File csvFile = new File(outputLoc);
             csvFile.createNewFile();
-            FileWriter csvFileWriter = new FileWriter(outputLoc.toString());
+            FileWriter csvFileWriter = new FileWriter(outputLoc);
             for (String lines: csvLines) {
                 csvFileWriter.write(lines);
                 csvFileWriter.write("\n");
