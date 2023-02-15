@@ -1,5 +1,4 @@
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,19 +8,22 @@ import java.util.Scanner;
 public class LogCollection {
     private List<String> logList = new ArrayList<>();
 
-    public LogCollection(URI logsPath) {
+    public LogCollection(String logsPath) {
         readLogFromFile(logsPath);
     }
-    public void readLogFromFile(URI logsPath){
-        File file = new File(logsPath);
+    public void readLogFromFile(String logsPath){
+        InputStream stream = getClass().getResourceAsStream(logsPath);
         try {
-            Scanner scanner = new Scanner(file);
-            while (scanner.hasNextLine()) {
-                String logLine = scanner.nextLine();
-                logList.add(logLine);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+            while (reader.ready()) {
+                String logLine = reader.readLine();
+                String[] splitted = logLine.split("/", 0);
+                logList.add(splitted[splitted.length - 1]);
             }
         } catch (FileNotFoundException e){
             Console.print("Error reading log file.");
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

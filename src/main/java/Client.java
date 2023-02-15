@@ -22,10 +22,12 @@ public class Client {
      * The OAuth Token generated using the client ID and client secret.
      */
     private OAuthToken clientToken;
+    private OAuthToken userToken;
 
     private URL serverTokenURL;
     private URL serverAPIURL;
 
+    private String clientFilePath;
     /**
      * Generates a client given a client ID and client secret.
      * @param clientID The client ID.
@@ -43,19 +45,28 @@ public class Client {
      *             line containing the client ID and client secret.
      */
 
-    public Client(URI clientFilePath, URL serverTokenURL, URL serverAPIURL) {
+    public Client(String clientFilePath, URL serverTokenURL, URL serverAPIURL) {
         this.serverTokenURL = serverTokenURL;
         this.serverAPIURL = serverAPIURL;
+        this.clientFilePath = clientFilePath;
         try {
-            File credentialsFile = new File(clientFilePath);
-            Scanner reader = new Scanner(credentialsFile);
-            String credentials = reader.nextLine();
-            String[] splitCredentials = credentials.split(",");
-            this.clientID = splitCredentials[0];
-            this.clientSecret = splitCredentials[1];
-            Console.print("Successfully created client with provided client crendentials file.");
+            InputStream stream = getClass().getResourceAsStream(clientFilePath);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+            if( reader.ready() ) {
+                String[] splitCredentials = reader.readLine().split(",");
+                String[] splitClientCredentials = reader.readLine().split(",");
+                this.clientID = splitCredentials[0];
+                this.clientSecret = splitCredentials[1];
+                if (splitClientCredentials.length > 0) {
+                    this.clientToken = new OAuthToken(Long.parseLong(splitClientCredentials[1]), splitClientCredentials[0]);
+                }
+            }
+            getClientToken();
+            Console.print("Successfully created client with provided client credentials file.");
         } catch (FileNotFoundException e) {
             Console.print("Error with reading client credentials.");
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -86,7 +97,19 @@ public class Client {
 
             JsonObject obj = JsonParser.parseString(scanner.next()).getAsJsonObject();
 
-            clientToken = new OAuthToken(obj.get("token_type").getAsString(), obj.get("expires_in").getAsInt(), obj.get("access_token").getAsString());
+            clientToken = new OAuthToken(obj.get("expires_in").getAsInt(), obj.get("access_token").getAsString());
+            try {
+                File csvFile = new File(clientFilePath);
+                csvFile.createNewFile();
+                System.out.println("STORING NEW CLIENT CREDENTIALS");
+                FileWriter csvFileWriter = new FileWriter(csvFile);
+                String line = String.join(",", clientID, clientSecret, clientToken.getAccessToken(), Long.toString(clientToken.getExpiryDate()));
+                csvFileWriter.write(line);
+                csvFileWriter.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             Console.print("Successfully generated new client token from client credentials.");
             connection.disconnect();
 
@@ -144,27 +167,11 @@ public class Client {
      */
     public String getClientToken() {
         if (!isTokenValid()) {
+            System.out.println("Refreshed client token");
             generateNewClientToken();
         }
         return clientToken.getAccessToken();
     }
-
-    /**
-     * Returns a client access token which is valid for the specified time.
-     * @param duration the duration the token is expected to last for in seconds.
-     * @return the client access token.
-     */
-    public String getClientToken(long duration) {
-        if (!isTokenValid(duration)) {
-            generateNewClientToken();
-        }
-        if (isTokenValid(duration)) {
-            return clientToken.getAccessToken();
-        } else {
-            throw new IllegalArgumentException("Time exceeds the valid duration of the token");
-        }
-    }
-
 
     /**
      * Returns a boolean value on whether the token is valid at the current time.
@@ -174,19 +181,6 @@ public class Client {
         boolean isValid = false;
         if (clientToken != null) {
             isValid = !clientToken.isExpired();
-        }
-        return isValid;
-    }
-
-    /**
-     * Returns a boolean value on whether the token will be valid for the specified duration.
-     * @param duration the duration the token is required to be valid for.
-     * @return Returns a boolean value on whether the token is valid.
-     */
-    public boolean isTokenValid(long duration) {
-        boolean isValid = false;
-        if (clientToken != null) {
-            isValid = !clientToken.isExpired(duration);
         }
         return isValid;
     }

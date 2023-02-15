@@ -1,16 +1,16 @@
 import java.time.Instant;
 
 public class OAuthToken {
-    private String tokenType;
-    private int expiresIn;
     private String accessToken;
-    private long creationDate;
-    public OAuthToken(String tokenType, Integer expiresIn, String accessToken) {
-        this.tokenType = tokenType;
-        this.expiresIn = expiresIn;
+    private long expiryDate;
+    public OAuthToken(Integer expiresIn, String accessToken) {
         this.accessToken = accessToken;
-        this.creationDate = Instant.now().toEpochMilli();
+        this.expiryDate = Instant.now().toEpochMilli() + (expiresIn * 1000) - 3600000;
+    }
 
+    public OAuthToken(Long expiryDate, String accessToken) {
+        this.accessToken = accessToken;
+        this.expiryDate = expiryDate;
     }
 
     /**
@@ -22,23 +22,21 @@ public class OAuthToken {
     }
 
     /**
-     * Returns whether the access token is expired.
-     * @return Whether the access token is past the expiration date.
+     * Returns the expiry date.
+     * @return Returns the expiry date.
      */
-    public boolean isExpired(long duration) {
-        return (Instant.now().toEpochMilli() - creationDate) > (expiresIn - duration) * 1000;
-    }
+    public long getExpiryDate() { return expiryDate; }
 
     /**
      * Returns whether the access token is expired.
      * @return Whether the access token is past the expiration date.
      */
     public boolean isExpired() {
-        return (Instant.now().toEpochMilli() - creationDate) > (expiresIn) * 1000;
+        return Instant.now().toEpochMilli() > this.expiryDate;
     }
 
     @Override
     public String toString() {
-        return String.join(",", tokenType, String.valueOf(expiresIn) , accessToken);
+        return String.join(",", String.valueOf(this.expiryDate) , accessToken);
     }
 }

@@ -17,6 +17,34 @@ public class GraphQLQuery {
         """;
         return toJson(query);
     }
+    static JsonObject reportDebuffQuery(String code, Integer debuff) {
+        String query = String.format("""
+        {   
+          reportData{
+            report(code: "%s"){
+              events(fightIDs: [1,2,10], dataType: Debuffs, abilityID: 1003428, filterExpression: "encounterPhase = 2", limit: 10000),{
+                data
+              }
+            }
+          }
+        }
+    """, code, debuff) ;
+    return toJson(query);
+    }
+    static JsonObject reportDebuffQuery(String code, Integer debuff, Integer phase) {
+        String query = String.format("""
+        {
+            reportData{
+                report(code: "%s"){
+                    events(startTime: 0, endTime: 100000000, dataType: Debuffs, abilityID: %d, filterExpression: "encounterPhase = %d", limit: 10000),{
+                        data
+                    }
+                }
+            }
+        }
+    """, code, debuff, phase) ;
+        return toJson(query);
+    }
 
     static JsonObject reportInfoQuery(String code) {
         String query = String.format("""
@@ -24,8 +52,15 @@ public class GraphQLQuery {
           reportData{
             report(code: "%s"){
               startTime
+              masterData{
+                actors(type: "player"){
+                  name
+                  id
+                }
+              }
               fights{
                 id
+                friendlyPlayers
                 bossPercentage
                 fightPercentage
                 encounterID
